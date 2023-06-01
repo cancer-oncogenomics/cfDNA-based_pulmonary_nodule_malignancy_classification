@@ -1,0 +1,101 @@
+ID	Train_Group	Stage_TNM	Sex	Age	train
+V1	Cancer	I	F	61	validation
+V2	Cancer	I	F	70	validation
+V3	Cancer	I	F	57	validation
+V4	Cancer	I	F	70	validation
+V5	Cancer	I	F	62	validation
+V6	Cancer	I	M	64	validation
+V7	Cancer	I	M	76	validation
+V8	Cancer	I	F	50	validation
+V9	Cancer	I	M	65	validation
+V10	Cancer	I	F	77	validation
+V11	Cancer	I	F	67	validation
+V12	Cancer	I	F	68	validation
+V13	Cancer	I	M	61	validation
+V14	Cancer	I	M	66	validation
+V15	Cancer	I	M	58	validation
+V16	Cancer	I	F	70	validation
+V17	Cancer	I	F	71	validation
+V18	Cancer	I	F	62	validation
+V19	Cancer	I	M	59	validation
+V20	Cancer	I	F	48	validation
+V21	Cancer	I	M	50	validation
+V22	Cancer	I	M	56	validation
+V23	Cancer	I	F	59	validation
+V24	Cancer	I	M	58	validation
+V25	Cancer	I	M	71	validation
+V26	Cancer	I	M	70	validation
+V27	Cancer	I	F	62	validation
+V28	Cancer	I	F	47	validation
+V29	Cancer	I	M	51	validation
+V30	Cancer	I	F	73	validation
+V31	Cancer	I	F	66	validation
+V32	Cancer	I	F	72	validation
+V33	Cancer	I	M	67	validation
+V34	Cancer	I	F	62	validation
+V35	Cancer	I	M	38	validation
+V36	Cancer	I	F	55	validation
+V37	Cancer	I	M	53	validation
+V38	Cancer	I	M	77	validation
+V39	Cancer	I	M	71	validation
+V40	Cancer	I	F	54	validation
+V41	Cancer	I	F	53	validation
+V42	Cancer	I	F	71	validation
+V43	Cancer	I	M	55	validation
+V44	Cancer	I	F	61	validation
+V45	Cancer	I	F	70	validation
+V46	Cancer	I	F	77	validation
+V47	Cancer	I	F	58	validation
+V48	Cancer	I	F	65	validation
+V49	Cancer	I	F	73	validation
+V50	Cancer	I	M	39	validation
+V51	Cancer	I	F	55	validation
+V52	Cancer	I	F	68	validation
+V53	Cancer	I	F	69	validation
+V54	Cancer	I	M	55	validation
+V55	Cancer	I	F	67	validation
+V56	Cancer	I	M	77	validation
+V57	Cancer	I	F	38	validation
+V58	Cancer	I	F	59	validation
+V59	Cancer	I	M	52	validation
+V60	Cancer	I	M	55	validation
+V61	Cancer	I	F	52	validation
+V62	Cancer	I	F	69	validation
+V63	Cancer	I	F	77	validation
+V64	Cancer	I	M	68	validation
+V65	BLN		F	62	validation
+V66	BLN		F	68	validation
+V67	BLN		F	58	validation
+V68	BLN		M	73	validation
+V69	BLN		M	73	validation
+V70	BLN		F	58	validation
+V71	BLN		F	51	validation
+V72	BLN		F	38	validation
+V73	BLN		M	53	validation
+V74	BLN		F	57	validation
+V75	BLN		M	53	validation
+V76	BLN		M	56	validation
+V77	BLN		F	73	validation
+V78	BLN		M	68	validation
+V79	BLN		M	62	validation
+V80	BLN		M	62	validation
+V81	BLN		F	54	validation
+V82	BLN		M	54	validation
+V83	BLN		F	61	validation
+V84	BLN		M	72	validation
+V85	BLN		F	68	validation
+V86	BLN		F	65	validation
+V87	BLN		M	61	validation
+V88	BLN		M	69	validation
+V89	BLN		M	57	validation
+V90	BLN		F	57	validation
+V91	BLN		F	67	validation
+V92	BLN		M	58	validation
+V93	BLN		M	63	validation
+V94	BLN		M	57	validation
+V95	BLN		F	34	validation
+V96	BLN		M	47	validation
+V97	BLN		F	72	validation
+V98	BLN		F	49	validation
+V99	BLN		M	69	validation
+V100	BLN		M	49	validation

@@ -1,0 +1,229 @@
+---
+title: "NoduleMalignancy"
+output: html_document
+---
+
+### cfDNA model for clssifying the malignancy of high-risk lung nodules
+
+### load required packages
+```{r echo=FALSE message=FALSE}
+package_list <- c("dplyr","tidyr","purrr","stringr","ggplot2","data.table","h2o","splitTools")
+installed_packages <- installed.packages()
+packages_to_install <- setdiff(package_list, installed_packages[,1])
+if(length(packages_to_install) > 0) {
+  install.packages(packages_to_install)
+}
+# Load the packages
+sapply(package_list, require, character.only = TRUE)
+
+# initiate h2o instance
+h2o.init(port = 18181 + sample(1:1000,1), nthreads = 16, max_mem_size = "256G")
+# load the model fitting function
+source("./model_fitting.R")
+source("./assemble_internal_validation_results.R")
+
+```
+
+### load example feature data
+
+```{r echo=FALSE}
+train_sampleinfo <- read.csv("./Sample_info_train",sep='\t')
+
+train_frame <- data.table::fread("./Feature_train.csv") %>%
+  data.frame() %>%
+  inner_join(select(train_sampleinfo, Train_Group, ID), by = c("ID")) 
+
+valid_sampleinfo <- read.csv("./Sample_info_valid",sep='\t')
+
+valid_frame <- data.table::fread("./Feature_valid.csv") %>%
+  data.frame() %>%
+  inner_join(select(valid_sampleinfo, Train_Group, ID), by = c("ID"))
+
+```
+
+### fit model for external validation
+
+```{r echo=FALSE}
+### fitting model requires 1.feature_data, 2. feature_type (a string separated by comma), 
+### 3. sample_info, 4. l2_stacking, 5. output_path
+
+### prepare inputs for full cfDNA model with external validation
+
+train_frame_cfDNA <- train_frame[,!grepl("Radiomics_",colnames(train_frame))]
+
+feature_data_full_cfDNA <- rbind(train_frame_cfDNA, valid_frame)
+
+### assign fold index for cross validation in the training frame
+fold_assignment <- splitTools::create_folds(train_sampleinfo$Train_Group, k = 5, type = "stratified", 
+                                                         invert  = T, seed = 42)
+train_sampleinfo$fold_column <- NA
+valid_sampleinfo$fold_column <- NA
+for(k in 1:5){
+  train_sampleinfo$fold_column[fold_assignment[[k]]] <- k
+}
+
+sample_info_full <- rbind(train_sampleinfo, valid_sampleinfo)
+
+fit_model(feature_data = feature_data_full_cfDNA, feature_type = "NEO",
+          sample_info = sample_info_full, l2_stacking = TRUE,
+          output_path = "./cfDNA_external_validation/")
+h2o.removeAll()
+# h2o.shutdown(prompt = F)
+
+### assemble results for training and validation cohorts
+train_score_final <- read.csv(paste0("./cfDNA_external_validation/Layer2_train_score.csv")) %>%
+  mutate(Final_score = (l2_1 + l2_2 + l2_3)/3)
+train_roc <- roc(train_score_final$Train_Group, train_score_final$Final_score, ci = T, levels = c("BLN","Cancer"))
+
+valid_score_final <- read.csv(paste0("./cfDNA_external_validation/Layer2_valid_score.csv")) %>%
+  mutate(Final_score = (l2_1 + l2_2 + l2_3)/3)
+valid_roc <- roc(valid_score_final$Train_Group, valid_score_final$Final_score, ci = T, levels = c("BLN","Cancer"))
+
+print(train_roc$auc)
+print(valid_roc$auc)
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+### fit model for internal validation
+
+```{r echo=FALSE}
+### prepare inputs and sample info for cfDNA model with 5X5 CV, only use the train_frame feature data
+
+feature_data <- train_frame[,!grepl("Radiomics_",colnames(train_frame))] # not including radiomics variables
+sample_info <- train_sampleinfo %>%
+  mutate(fold_column= NA, train = NA)
+  
+### iterate for 5 rounds of cross validations
+
+for(i in 1:5){
+  
+  ##### assign training and validation folds
+  trainvalid_assignment <- splitTools::create_folds(sample_info$Train_Group, k = 5, type = "stratified", 
+                                                         invert  = T, seed = 42+i)
+  
+  for(fold in 1:5){
+    sample_info$train[-trainvalid_assignment[[fold]]] <- "training"
+    sample_info$train[trainvalid_assignment[[fold]]] <- "validation"
+    
+    ####### assign fold index for cross validation in the training frame
+    ####### fold index in the validation fold was assigned but not used
+    fold_assignment <- splitTools::create_folds(paste0(sample_info$Train_Group,sample_info$train), k = 5, type = "stratified", 
+                                                             invert  = T, seed = 42)
+    for(k in 1:5){
+      sample_info$fold_column[fold_assignment[[k]]] <- k
+    } # complete fold assignment
+    
+    # h2o.init(port = 18181 + sample(1:1000,1), nthreads = 16, max_mem_size = "256G")
+    fit_model(feature_data = feature_data, feature_type = "FSP,BPM,NCP,CNV,NEO", # example "FSP,BPM,NCP,CNV,NEO"
+            sample_info = sample_info, l2_stacking = TRUE,
+            output_path = paste0("./cfDNA_internal_validation/round",i,"/fold",fold,"/"))    
+    h2o.removeAll()
+    # h2o.shutdown(prompt = F)
+  } # complete train-valid fold iteration
+  
+} # complete five repeats of five-fold cross validations
+
+### assemble results from different rounds and folds
+final_score <- assemble_cv_results(target_path = "./cfDNA_internal_validation/")
+
+### calculate AUC
+final_roc <- roc(final_score$Train_Group, final_score$Final_score, ci = T, levels = c("BLN","Cancer"))
+print(final_roc$auc)
+
+```
+
+```{r echo=FALSE}
+### prepare inputs and sample info for cfDNA+radiomics model with 5X5 CV, only use the train_frame feature data
+
+feature_data <- train_frame
+sample_info <- train_sampleinfo %>%
+  mutate(fold_column= NA, train = NA)
+  
+### iterate for 5 rounds of cross validations
+
+for(i in 1:5){
+  
+  ##### assign training and validation folds
+  trainvalid_assignment <- splitTools::create_folds(sample_info$Train_Group, k = 5, type = "stratified", 
+                                                         invert  = T, seed = 42+i)
+  
+  for(fold in 1:5){
+    sample_info$train[-trainvalid_assignment[[fold]]] <- "training"
+    sample_info$train[trainvalid_assignment[[fold]]] <- "validation"
+    
+    ####### assign fold index for cross validation in the training frame
+    ####### fold index in the validation fold was assigned but not used
+    fold_assignment <- splitTools::create_folds(paste0(sample_info$Train_Group,sample_info$train), k = 5, type = "stratified", 
+                                                             invert  = T, seed = 42)
+    for(k in 1:5){
+      sample_info$fold_column[fold_assignment[[k]]] <- k
+    } # complete fold assignment
+    
+    # h2o.init(port = 18181 + sample(1:1000,1), nthreads = 16, max_mem_size = "256G")    
+    fit_model(feature_data = feature_data, feature_type = "FSP,BPM,NCP,CNV,NEO,Radiomics", # example "FSP,BPM,NCP,CNV,NEO"
+            sample_info = sample_info, l2_stacking = TRUE,
+            output_path = paste0("./cfDNAradio_internal_validation/round",i,"/fold",fold,"/"))    
+    h2o.removeAll()
+    # h2o.shutdown(prompt = F)  
+  } # complete train-valid fold iteration
+  
+} # complete five repeats of five-fold cross validations
+
+### assemble results from different rounds and folds
+final_score <- assemble_cv_results(target_path = "./cfDNAradio_internal_validation/")
+
+### calculate AUC
+final_roc <- roc(final_score$Train_Group, final_score$Final_score, ci = T, levels = c("BLN","Cancer"))
+print(final_roc$auc)
+
+```
+
+```{r echo=FALSE}
+### prepare inputs and sample info for radiomics model with 5X5 CV, only use the train_frame feature data
+
+feature_data <- train_frame
+sample_info <- train_sampleinfo %>%
+  mutate(fold_column= NA, train = NA)
+  
+### iterate for 5 rounds of cross validations
+
+for(i in 1:5){
+  
+  ##### assign training and validation folds
+  trainvalid_assignment <- splitTools::create_folds(sample_info$Train_Group, k = 5, type = "stratified", 
+                                                         invert  = T, seed = 42+i)
+  
+  for(fold in 1:5){
+    sample_info$train[-trainvalid_assignment[[fold]]] <- "training"
+    sample_info$train[trainvalid_assignment[[fold]]] <- "validation"
+    
+    ####### assign fold index for cross validation in the training frame
+    ####### fold index in the validation fold was assigned but not used
+    fold_assignment <- splitTools::create_folds(paste0(sample_info$Train_Group,sample_info$train), k = 5, type = "stratified", 
+                                                             invert  = T, seed = 42)
+    for(k in 1:5){
+      sample_info$fold_column[fold_assignment[[k]]] <- k
+    } # complete fold assignment
+    
+    # h2o.init(port = 18181 + sample(1:1000,1), nthreads = 16, max_mem_size = "256G")    
+    fit_model(feature_data = feature_data, feature_type = "Radiomics", # example "FSP,BPM,NCP,CNV,NEO"
+            sample_info = sample_info, l2_stacking = TRUE,
+            output_path = paste0("./radiomics_internal_validation/round",i,"/fold",fold,"/"))    
+    h2o.removeAll()
+    # h2o.shutdown(prompt = F)  
+  } # complete train-valid fold iteration
+  
+} # complete five repeats of five-fold cross validations
+
+### assemble results from different rounds and folds
+final_roc <- assemble_cv_results(target_path = "./radiomics_internal_validation/")
+
+### calculate AUC
+final_roc <- roc(final_score$Train_Group, final_score$Final_score, ci = T, levels = c("BLN","Cancer"))
+print(final_roc$auc)
+
+```
+
+
